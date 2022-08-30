@@ -1,0 +1,12 @@
+selenium.webdriver.common.keys
+selenium.webdriver.common.by
+selenium.webdriver.support.ui
+selenium.webdriver.support
+selenium.common.exceptions
+selenium.webdriver.chrome.options
+time
+datetime
+schedule
+undetected_chromedriver
+dotenv
+os
