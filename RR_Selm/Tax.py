@@ -12,7 +12,6 @@ from selenium.webdriver.chrome.options import Options
 import time
 import schedule
 import undetected_chromedriver as uc
-from dotenv import load_dotenv
 import os
 from helper import loginAccount, check_exists_by_xpath
 import pyperclip

@@ -71,7 +71,7 @@ def deepExploraiton(driver, locIndex, resource_index, amount):
     except: print("RIP")
 def fuckzoco(driver, resource_index):
     driver.get("https://rivalregions.com") # The website we want to go to
-    locIndex=1
+    locIndex=0
     try:
         while locIndex<20: #creates a loop in order to refill every region except NI
             time.sleep(3)
