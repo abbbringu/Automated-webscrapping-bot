@@ -2,7 +2,7 @@ from discord.ext import commands
 import asyncio
 import os
 from dotenv import load_dotenv
-from MoE import resourceRenew, deepExploraiton, status, reset
+from MoE import fuckzoco, resourceRenew, deepExploraiton, status, reset
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 import os
 from helper import loginAccount
 import Tax
+import discord
 
 load_dotenv()
 #--------------------------- Variable declaration ---------------------------- 
@@ -25,7 +26,7 @@ options.add_argument("--disable-web-security")
 options.add_argument("--disable-site-isolation-trials")
 options.add_argument('--log-level=1')
 options.add_argument("--lang=en")
-options.headless = True # Run without chrome ui 
+options.headless = False # Run without chrome ui 
 options.add_argument('--disable-gpu')  # Last I checked this was necessary.
 
 if __name__ == '__main__':
@@ -125,8 +126,8 @@ if __name__ == '__main__':
 
     """
 
-
-    bot = commands.Bot(command_prefix='€')
+    intents = discord.Intents.all()
+    bot = commands.Bot(command_prefix='€',intents=intents)
     resources = ["gol", "oil", "ore", "ura", "dia"]
     @bot.command(name='deep', help='Make deep explorations. €deep <location number> <Type of resource> <amount>')
     @commands.has_any_role(discord_role, discord_role1, discord_role2)
@@ -177,6 +178,16 @@ if __name__ == '__main__':
             return
         await ctx.send(bot_info)
 
+    @bot.command(name='fuckzoco', help='Renews resources in every region except Northern Ireland. Made with love by Turdetano :ratilla:. €fuckzoco <type in 3 letters ex gol, oil, ura>')
+    @commands.has_any_role(discord_role, discord_role1, discord_role2)
+    async def renew(ctx, typeR: str):
+        if ((ctx.author == bot.user) or not(typeR in resources) or int(ctx.channel.id) != int( os.environ["discord_channel_id"])):
+            await ctx.send("Error, either input error, or you are in the wrong channel")
+            return
+        await ctx.send(f"Attemting to fuck zoco! :D Please wait a moment {ctx.message.author.mention} <3")
+        fuckzoco(driver, typeR)
+        await ctx.send("Done with the attempt, check if it was sucessful")
+
         
 
     @bot.event
@@ -195,5 +206,12 @@ if __name__ == '__main__':
             schedule.run_pending() # Look if any resource should be reactivated
             await asyncio.sleep(30)
 
-    bot.loop.create_task(my_task())
     bot.run(TOKEN)
+
+    async def my_task(): # Task to repeat every 30 seconds
+        while True:
+            schedule.run_pending() # Look if any resource should be reactivated
+            await asyncio.sleep(30)
+    asyncio.run(my_task())
+
+
