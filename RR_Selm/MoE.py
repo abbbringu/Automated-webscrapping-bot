@@ -69,6 +69,48 @@ def deepExploraiton(driver, locIndex, resource_index, amount):
                     pass
                 break
     except: print("RIP")
+def fuckzoco(driver, resource_index):
+    driver.get("https://rivalregions.com") # The website we want to go to
+    locIndex=1
+    try:
+        while locIndex<20: #creates a loop in order to refill every region except NI
+            time.sleep(3)
+            goToParliament(driver)
+            # driver.get_screenshot_as_file("test.png")
+            if(driver.current_url == "https://rivalregions.com/#parliament"):
+                select_law(driver,1) #Selects plain resource exploration (second item)
+                driver.find_element(By.XPATH,'//div[@id="offer_dd_34_reg"]').click()
+                regions=driver.find_elements(By.XPATH,'//div[@id="offer_dd_34_reg"]/ul/li')
+                try:                        #Waits for element is clickable
+                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable(regions[locIndex])).click() # try to click on the resource
+                except:
+                    print("Could not click, type resource error")
+                    pass
+                driver.find_element(By.XPATH,'//div[@id="offer_dd_34_res"]').click()
+                resource_type=driver.find_elements(By.XPATH,'//div[@id="offer_dd_34_res"]/ul/li')
+                try:                        #Waits for element is clickable
+                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable(resource_type[resource_index])).click() # try to click on the resource
+                except:
+                    print("Could not click, type resource error")
+                    pass
+                l=driver.find_element(By.XPATH,'//div/input[@id="offer_count_34"]')
+                l.clear()
+                driver.find_element(By.XPATH, '//div[@id="offer_do"]').click()
+                time.sleep(3)
+                driver.implicitly_wait(1)
+                # driver.get_screenshot_as_file("screenshot.png")
+                try:                        #Waits for element is clickable
+                    accept_law(driver)
+                    if locIndex == 14:
+                        locIndex = 16
+                    else:
+                        locIndex=locIndex+1 #not sure if this will work
+                except Exception as e:
+                    print("Could not click, type resource error", e)
+                    pass
+                break
+    except: print("RIP")
+
 def status():
     ct = datetime.datetime.now()
     print("Alive", ct)
