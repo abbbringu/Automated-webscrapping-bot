@@ -185,7 +185,7 @@ if __name__ == '__main__':
             await ctx.send("Error, either input error, or you are in the wrong channel")
             return
         await ctx.send(f"Attemting to fuck zoco! :D Please wait a moment {ctx.message.author.mention} <3")
-        fuckzoco(driver, typeR)
+        fuckzoco(driver, resources.index(typeR.lower()))
         await ctx.send("Done with the attempt, check if it was sucessful")
 
         
