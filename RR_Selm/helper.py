@@ -59,26 +59,6 @@ def select_law(driver, int):
     except:
         print("Could not click, type law error")
         pass
-def state_exploration(driver, resource_type):
-    """ 
-        0 = Gold
-        1 = Oil
-        2 = Ore
-        3 = Uranium
-        4 = Diamonds 
-    """ 
-    select_law(driver,4) #go to resource law
-    time.sleep(3)
-    driver.find_element(By.XPATH,'//div[@url="42"]/div/div/div/div').click() # Click on dropdown list
-    resource = driver.find_elements(By.XPATH,'//div[@url="42"]/div/div/ul/li') #Get list on dropdown resource list
-    try:                        #Waits for element is clickable
-        WebDriverWait(driver, 20).until(EC.element_to_be_clickable(resource[resource_type])).click() # try to click on the resource
-    except:
-        print("Could not click, type resource error")
-        pass
-    time.sleep(3)
-    
-    driver.find_element(By.XPATH,'//div[@id="offer_do"]').click() # Clicking on offer law
     
     time.sleep(3)
 def accept_law(driver):
