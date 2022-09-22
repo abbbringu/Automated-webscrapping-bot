@@ -26,7 +26,7 @@ options.add_argument("--disable-web-security")
 options.add_argument("--disable-site-isolation-trials")
 options.add_argument('--log-level=1')
 options.add_argument("--lang=en")
-options.headless = False # Run without chrome ui 
+options.headless = True # Run without chrome ui 
 options.add_argument('--disable-gpu')  # Last I checked this was necessary.
 
 if __name__ == '__main__':
