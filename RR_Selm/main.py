@@ -1,39 +1,119 @@
-from discord.ext import commands
+rom discord.ext import commands
 import asyncio
 import os
 from dotenv import load_dotenv
 from MoE import fuckzoco, resourceRenew, deepExploraiton, status, reset
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import TimeoutException as TE
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from fake_useragent import UserAgent
 import time
 import schedule
-import undetected_chromedriver as uc
+import undetected_chromedriver.v2 as uc
 from dotenv import load_dotenv
 import os
 from helper import loginAccount
 import Tax
 import discord
+from selenium.webdriver.chrome.options import Options
+from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
+from xvfbwrapper import Xvfb
+from app.hcaptcha import hCaptcha
+from app.utils.colors import GREEN, RED, RESET
+from app.utils.const import DEMONSTRATION_URL
+vdisplay = Xvfb(width=800, height=1280)
+vdisplay.start()
 
 load_dotenv()
 #--------------------------- Variable declaration ---------------------------- 
 Mail =  os.environ["account_mail"]    #Fill your login info from env file os.environ["vonage_api"]
 Password = os.environ["account_password"]
 
-options = Options()
-options.add_argument("--disable-web-security")
-options.add_argument("--disable-site-isolation-trials")
-options.add_argument('--log-level=1')
+options = webdriver.ChromeOptions()
+chrome_path = ChromeDriverManager().install()
+chrome_service = Service(chrome_path)
+#options.add_argument("--headless")
+options.headless = False
+options.add_argument("window-size=1400,1500")
+options.add_argument("--disable-gpu")
+options.add_argument("--no-sandbox")
+options.add_argument("start-maximized")
+options.add_argument("enable-automation")
+options.add_argument("--disable-infobars")
+options.add_argument("--disable-dev-shm-usage")
 options.add_argument("--lang=en")
-options.headless = True # Run without chrome ui 
-options.add_argument('--disable-gpu')  # Last I checked this was necessary.
+options.add_argument('--log-level=1')
+options.add_argument("--disable-site-isolation-trials")
+options.add_argument("--disable-web-security")
+options.add_argument("--disable-blink-features")
+options.add_argument("--disable-blink-features=AutomationControlled")
+options.add_argument('--disable-dev-shm-usage')
+#ua = UserAgent()
+#userAgent = ua.random
+#print(userAgent)
+#options.add_argument(f'user-agent={userAgent}')
 
+def demonstration(hcaptcha: object) -> None:
+    """Demonstration of the hCAPTCHA solver."""
+    try:
+        print('Solving the hCAPTCHA.', end=' ')
+        hcaptcha.driver.get(DEMONSTRATION_URL)  # hCAPTCHA solver test URL.
+        # Check if the lenght of "data-hcaptcha-response" attribute is
+        # not null. If it's not null, the hCAPTCHA is solved.
+        WebDriverWait(hcaptcha.driver, 600).until(lambda _: len(hcaptcha.visible(
+            '//div[@class="h-captcha"]/iframe').get_attribute(
+                'data-hcaptcha-response')) > 0)
+        print(f'{GREEN}Solved.{RESET}')
+    except TE:  # Something went wrong.
+        print(f'{RED}Failed.{RESET}')
+        
 if __name__ == '__main__':
-    driver = uc.Chrome(options)
+    #driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    driver = uc.Chrome(options=options, use_subprocess=True, service=chrome_service)
+    #driver = uc.Chrome(options=options)
+    driver.execute_script('return navigator.webdriver')
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.5195.125 Safari/537.36'})
+    driver.maximize_window()
+    email = "yourmail@gmail.com"
+    password = "your password"
+
+    options = webdriver.ChromeOptions()
+    #options.add_argument('proxy-server=106.122.8.54:3128')
+    #options.add_argument(r'--user-data-dir=C:\Users\suppo\AppData\Local\Google\Chrome\User Data\Default')
+
+    browser = uc.Chrome(
+        options=options,
+    )
+    browser.get('https://accounts.google.com/signin/v2/identifier?continue=https%3A%2F%2Fmail.google.com%2Fmail%2F&service=mail&sacu=1&rip=1&hl=en&flowName=GlifWebSignIn&flowEntry=ServiceLogin')
+
+    browser.find_element(By.ID, 'identifierId').send_keys(email)
+
+    browser.find_element(
+        By.CSS_SELECTOR, '#identifierNext > div > button > span').click()
+
+    password_selector = "#password > div.aCsJod.oJeWuf > div > div.Xb9hP > input"
+
+    WebDriverWait(browser, 10).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, password_selector)))
+
+    browser.find_element(
+        By.CSS_SELECTOR, password_selector).send_keys(password)
+    
+    browser.find_element(
+        By.CSS_SELECTOR, '#passwordNext > div > button > span').click()
         # chromeVersion = ChromeDriverManager().install()
         # driver = webdriver.Chrome(chromeVersion, chrome_options=options)
     driver.get("https://rivalregions.com") # The website we want to go to
+    hcaptcha = hCaptcha(  # Initialize the hCAPTCHA class.
+        browser=1, headless=False, comments=True, download=False)
+    hcaptcha.download_userscript()  # Download the userscript.
+    demonstration(hcaptcha)  # Demonstrate the hCAPTCHA solver.
+
 
     time.sleep(3)
         #driver.get_screenshot_as_file("test.png")
