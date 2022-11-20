@@ -1,0 +1,5 @@
+selenium
+datetime
+schedule
+python-dotenv
+undetected_chromedriver
