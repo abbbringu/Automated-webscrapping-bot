@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import datetime
 import os
 import requests
+import traceback
 
 load_dotenv()
 #--------------------------- Variable declaration ---------------------------- 
@@ -46,7 +47,13 @@ def sendTG (TOKEN, chat_id, message):
 
 def goToParliament(driver):           # From home screen, go to law section
     time.sleep(3)
-    driver.find_element(By.XPATH,'//div[@action="parliament"]').click()  
+    try:
+        driver.find_element(By.XPATH,'//div[@action="parliament"]').click()
+    except:
+        driver.get("https://rivalregions.com/#parliament")
+        driver.refresh()
+        driver.implicitly_wait(5)
+
 def select_law(driver, int):
     """
     0 = New Buildings 
@@ -59,9 +66,9 @@ def select_law(driver, int):
     Further may cause error due to not showing on scrren 
     """
     try:
-        driver.find_element(By.XPATH,'//div[@action="parliament/offer"]').click()
+        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH,'//div[@action="parliament/offer"]'))).click()
         time.sleep(5)
-        driver.find_element(By.XPATH,'//div[@id="offer_dd"]').click() # Click on dropdown list
+        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH,'//div[@id="offer_dd"]'))).click()
         time.sleep(5)
         law = driver.find_elements(By.XPATH,'//div[@id="offer_dd"]/ul/li')  #Get list on dropdown law list
     except:
@@ -69,12 +76,25 @@ def select_law(driver, int):
         try:
             driver.find_element(By.XPATH,'//div[@class="button_red par_new_law cancel_law"]').click()
             time.sleep(5)
-            select_law(driver, int)
         except:
             print("Failed to recoup")
-            reboot()
+            driver.delete_all_cookies()
+            time.sleep(5)
+            driver.get("https://rivalregions.com")
+            time.sleep(5)
+            try:
+                loginAccount(driver)
+                time.sleep(5)
+            except:
+                print("Failed to re-login")
+                try:
+                    driver.quit()
+                    driver.close()
+                    reboot()
+                except:
+                    print("Failed to bounce back")
+                    pass
         return
-
     try:                        #until we can click it
         WebDriverWait(driver, 20).until(EC.element_to_be_clickable(law[int])).click()
     except:
@@ -138,7 +158,11 @@ def newMessageChecker (driver,chat_id, TOKEN, Mail):
     else:
         print("No new messages")
 
-def autoperk(driver): #IN THE FUTURE/WONT DO
+def autoperk(driver,worksheet): #IN THE FUTURE/WONT DO
+    if check_exists_by_xpath(driver,"//div[@class='no_imp hasCountdown']")==False:
+        perkOptions = worksheet.get_row(4, include_tailing_empty=False)
+
+    
     print("o")
 
 def build_academy(driver,chat_id, TOKEN, Mail,worksheet): #COMPLETED
@@ -163,20 +187,28 @@ def build_academy(driver,chat_id, TOKEN, Mail,worksheet): #COMPLETED
                     rr_id = lastBuilt[3]
                 except IndexError:
                     lastBuilt.append(str(driver.get_cookie('rr_id')["value"]))
-                    worksheet.update_value('B8', lastBuilt[3])
+                    worksheet.update_value('D5', lastBuilt[3])
                 WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='header_buttons_hover_close']"))).click()
                 driver.implicitly_wait(3)
                 WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, f"//div[@action='slide/profile/{lastBuilt[3]}']"))).click()
                 driver.implicitly_wait(3)
-                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='tip header_buttons_hover slide_profile_link tc']"))).click()
+                try:
+                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='tip header_buttons_hover slide_profile_link tc']"))).click()
+                except:
+                    click = driver.find_element(By.XPATH,"//div[@class='tip header_buttons_hover slide_profile_link tc']") 
+                    driver.execute_script("arguments[0].click();", click)
                 driver.implicitly_wait(3)
-                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_green region_details_move']"))).click()
+                try:
+                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_green region_details_move']"))).click()
+                except:
+                    element = driver.find_element(By.XPATH,"//div[@class='button_green region_details_move']") 
+                    driver.execute_script("arguments[0].click();", element)
                 driver.implicitly_wait(3)
                 WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_blue map_d_b imp']"))).click()
                 travelTime = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.XPATH,'//span[@class="type_distance"]'))).get_attribute("textContent")
-                message= f"Arriving at residence in {travelTime} for {Mail}"
-                travelTime = travelTime.split(":")
-                travelTimeSeconds = travelTime[0]*60+ travelTime[1]
+                travelTimeTable = travelTime.split(":")
+                message= f"Arriving at residence in {travelTime} for {Mail}. {travelTimeTable}"
+                travelTimeSeconds = str(int(travelTimeTable[0])*60+ int(travelTimeTable[1]))
                 worksheet.update_value('B8', str(travelTimeSeconds))
                 driver.implicitly_wait(3)
                 WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_green map_d_b']"))).click()
@@ -195,8 +227,8 @@ def build_academy(driver,chat_id, TOKEN, Mail,worksheet): #COMPLETED
 
 def build_departments(driver,chat_id, TOKEN, Mail,worksheet): #COMPLETED
     lastBuilt = worksheet.get_row(6, include_tailing_empty=False)
-    print(f"Last {lastBuilt[0]} built on the day {lastBuilt[1]} at {lastBuilt[2]} h for {Mail} ")
-    if (lastBuilt [1] != str(datetime.date.today().isoweekday()) and int(datetime.datetime.now().hour) >= 19) or (int(lastBuilt[2])<19 and int(datetime.datetime.now().hour) >= 19 and lastBuilt[1]==str(datetime.date.today().isoweekday())):
+    print(f"Last {lastBuilt[0]} built on the day {lastBuilt[1]} at {lastBuilt[2]} h for {Mail} ") #it's coded to run after 21 to prevent clogging at 19 and 20
+    if (lastBuilt [1] != str(datetime.date.today().isoweekday()) and int(datetime.datetime.now().hour) >= 21) or (int(lastBuilt[2])<19 and int(datetime.datetime.now().hour) >= 19 and lastBuilt[1]==str(datetime.date.today().isoweekday())):
         listofdepartments=["buildings", "gold", "oil", "ore", "diamonds","uranium","liquidoxygen","helium-3","tanks","spacestations","battleships"]
         pointsfordepartments = worksheet.get_row(2, include_tailing_empty=False)
         driver.get("https://rivalregions.com/#state/details/3046/in")
@@ -214,15 +246,27 @@ def build_departments(driver,chat_id, TOKEN, Mail,worksheet): #COMPLETED
                     print(points)
                     element = driver.find_element("xpath", f"//div[@url='{url}'][@class='float_left hov2 pointer inst_plus green']") #find element and scroll down in case it is needed
                     element.location_once_scrolled_into_view
-                    time.sleep(3)
-                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, f"//div[@url='{url}'][@class='float_left hov2 pointer inst_plus green']"))).click()
+                    time.sleep(1)
+                    try:
+                        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, f"//div[@url='{url}'][@class='float_left hov2 pointer inst_plus green']"))).click()
+                    except:
+                        click = driver.find_element(By.XPATH,"//div[@class='float_left button_green inst_do']") 
+                        driver.execute_script("arguments[0].click();", click)
                     driver.implicitly_wait(0.5)
                     print ("Clicking " + str(department))
             else:
-                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, f"//div[@class='float_left button_green inst_do']"))).click()
+                try:
+                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, f"//div[@class='float_left button_green inst_do']"))).click()
+                except:
+                    click = driver.find_element(By.XPATH,"//div[@class='float_left button_green inst_do']") 
+                    driver.execute_script("arguments[0].click();", click)
                 driver.implicitly_wait(1)
                 time.sleep(1)
-                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, f"//div[@class='header_buttons_hover_close']"))).click()
+                try:
+                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, f"//div[@class='header_buttons_hover_close']"))).click()
+                except:
+                    click = driver.find_element(By.XPATH,"//div[@class='header_buttons_hover_close']") 
+                    driver.execute_script("arguments[0].click();", click)
                 time.sleep(1)
                 lastBuilt[2] = str(datetime.datetime.now().hour)
                 lastBuilt[1]=str(datetime.date.today().isoweekday())
@@ -252,7 +296,11 @@ def military_training(driver, chat_id, TOKEN, Mail): #COMPLETED
         if check_exists_by_xpath(driver,"//div[@class='tip button_green war_w_move']")==True:
             autoTraining= 2 
             print('Training is engaged in the wrong region')
-            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@id='slide_close']"))).click() #close autotab
+            try:
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@id='slide_close']"))).click() #close autotab
+            except:
+                close = driver.find_element(By.XPATH,"//div[@id='slide_close']") 
+                driver.execute_script("arguments[0].click();", close)
         else:
             print("Everything is right with AutoTraining")
     else:
@@ -266,7 +314,11 @@ def military_training(driver, chat_id, TOKEN, Mail): #COMPLETED
             element = driver.find_element(By.XPATH,"//span[@class='pointer index_training hov2 dot']") 
             driver.execute_script("arguments[0].click();", element)
         if autoTraining ==2: #cancels training
-            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_red war_w_auto_cancel']"))).click() #cancels wrong training
+            try:
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_red war_w_auto_cancel']"))).click() #cancels wrong training
+            except:
+                close = driver.find_element(By.XPATH,"//div[@class='button_red war_w_auto_cancel']") 
+                driver.execute_script("arguments[0].click();", close)
         driver.implicitly_wait(1)
         if check_exists_by_xpath(driver,"//div[@class='tip button_green hide_for_guide war_w_auto_wd']")==True: #enables training
             try:
@@ -283,102 +335,125 @@ def military_training(driver, chat_id, TOKEN, Mail): #COMPLETED
         else:
             print("Already with auto (inside check)")
         print("AutoTraining is being set")
-    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@id='slide_close']"))).click()
+    try:
+        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@id='slide_close']"))).click()
+    except:
+        close = driver.find_element(By.XPATH,"//div[@id='slide_close']") 
+        driver.execute_script("arguments[0].click();", close)
 
 def autowork(driver,chat_id,TOKEN, Mail,worksheet): #IN THE WORKS: DESIRED FACTORY
     desiredFactoryList = worksheet.get_row(7, include_tailing_empty=False)
-    for factory in range(len(desiredFactoryList)):
-        print (str(desiredFactoryList[factory]))
     driver.implicitly_wait(1)
-    if desiredFactoryList[0] != 'Attack':
+    try:
         element = driver.find_element(By.XPATH,"//div[@class='item_menu work_menu ajax_action header_menu_item tc'][@action='work']") #site headers can only be clicked this way
         driver.execute_script("arguments[0].click();", element)
-        driver.implicitly_wait(1)
-        autosell(driver, chat_id, TOKEN, Mail)
-        if driver.current_url != "https://rivalregions.com/#work":
-            driver.get("https://rivalregions.com/#work")
-            driver.refresh()
-            time.sleep(3)
-        if check_exists_by_xpath(driver,"//div[@class='work_factory_button button_blue'][@reslittle='0']")==True or check_exists_by_xpath(driver,"//div[@class='button_white tip'][@reslittle='0']")==True or check_exists_by_xpath(driver,"//div[@class='tip button_white no_pointer']")==True:
-            if check_exists_by_xpath(driver,"//div[@class='work_factory_button button_blue'][@reslittle='0']")==True or check_exists_by_xpath(driver,"//div[@class='button_white tip'][@reslittle='0']")==True:
-                print("Your resource is depleted")
-                reason = "the resource you worked has depleted in this region"
-            elif check_exists_by_xpath(driver,"//div[@class='tip button_white no_pointer']")==True:
-                print("You cannot work in your actual factory since you are in a wrong location")
-                reason = "the region is wrong"
-                #future option: check on a file where to fly (can be improved). if no place -> select factory with most workers (not done)
-            if desiredFactoryList[0] != 'Factory':
-                nextFactory=False
-                for desiredFactory in desiredFactoryList:
-                    print(str(desiredFactory))
-                    driver.get(f'{desiredFactory}')
-                    driver.refresh()
-                    driver.implicitly_wait(1)
-                    if check_exists_by_xpath(driver,"//div[@class='factory_join_2 button_green']")== True:
-                        driver.implicitly_wait(3)
-                        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='factory_join_2 button_green']"))).click()
-                        driver.implicitly_wait(3)
-                        autowork(driver,chat_id,TOKEN, Mail,desiredFactory)
-                        message = f"Selecting {desiredFactory} as factory to work and running again Autowork for {Mail}"
-                        break
-                    elif nextFactory == True:
-                        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//span[@class='factory_whose']"))).click()
-                        driver.implicitly_wait(3)
-                        try:
-                            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_green region_details_move']"))).click()
-                        except:
-                            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//span[@class='factory_whose']"))).click()
-                            driver.reload()
-                            time.sleep(3)
-                            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_green region_details_move']"))).click()
-                        driver.implicitly_wait(3)
-                        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_blue map_d_b imp']"))).click()
-                        travelTime = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.XPATH,'//span[@class="type_distance"]'))).get_attribute("textContent")
-                        message= f"Arriving at desired factory in {travelTime} for {Mail}"
-                        travelTime = travelTime.split(":")
-                        travelTimeSeconds = travelTime[0]*60+ travelTime[1]
-                        worksheet.update_value('B8', str(travelTimeSeconds))
-                        driver.implicitly_wait(3)
-                        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_green map_d_b']"))).click()
-                        break
-
-                    elif WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.XPATH,'//div[@class="factory_join_1 button_red"]'))):
-                        nextFactory = True
-                sendTG (TOKEN, chat_id, message)
-            else:
-                message = f"Please check AutoWork for {Mail}, because {reason} and there are no instructions in the ProfileVariables"
-            sendTG (TOKEN, chat_id, message)
-
-        elif check_exists_by_xpath(driver,"//div[@class='work_factory_button button_blue']")==True or check_exists_by_xpath(driver,"//div[@class='button_white tip']")==True:
-            print("You are already bound to a factory here") #the line above checks: if you have energy and you can work or if you have no energy but you can work (only for gold mine)
-            if check_exists_by_xpath(driver,"//div[@class='button_red cancel_auto_work']")==True: #if you cancel autowork, it checks how much time is left 
-                timeLeft = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.XPATH,'//span[@class="work_auto_countdown hasCountdown"]'))).get_attribute("textContent")
-                print((timeLeft))
-                print(timeLeft[0:2])
-                if int(timeLeft[0:2]) < 5:
-                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_red cancel_auto_work']"))).click()
-                    driver.implicitly_wait(5)
-                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='work_w_autom button_red tip']"))).click()
-                    message = f"Autowork was cancelled and restarted for {Mail}"
-                    sendTG (TOKEN, chat_id, message)
-            elif check_exists_by_xpath(driver,"//div[@class='work_w_autom button_red tip']")==True: #if you dont have auto enabled, it enables it
-                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='work_w_autom button_red tip']"))).click()
+    except:
+        driver.get("https://rivalregions.com/#work")
+        driver.refresh()
+    driver.implicitly_wait(1)
+    autosell(driver, chat_id, TOKEN, Mail)
+    if driver.current_url != "https://rivalregions.com/#work":
+        driver.get("https://rivalregions.com/#work")
+        driver.refresh()
+        time.sleep(3)
+    if check_exists_by_xpath(driver,"//div[@class='work_factory_button button_blue'][@reslittle='0']")==True or check_exists_by_xpath(driver,"//div[@class='button_white tip'][@reslittle='0']")==True or check_exists_by_xpath(driver,"//div[@class='tip button_white no_pointer']")==True:
+        if check_exists_by_xpath(driver,"//div[@class='work_factory_button button_blue'][@reslittle='0']")==True or check_exists_by_xpath(driver,"//div[@class='button_white tip'][@reslittle='0']")==True:
+            print("Your resource is depleted")
+            reason = "the resource you worked has depleted in this region"
+        elif check_exists_by_xpath(driver,"//div[@class='tip button_white no_pointer']")==True:
+            print("You cannot work in your actual factory since you are in a wrong location")
+            reason = "the region is wrong"
+            #future option: check on a file where to fly (can be improved). if no place -> select factory with most workers (not done)
+        nextFactory=False
+        for desiredFactory in desiredFactoryList:
+            print(str(desiredFactory))
+            if desiredFactory=="Attack":
+                print("Trying to attack")
+                driver.get("https://rivalregions.com")
                 driver.refresh()
                 time.sleep(5)
-                if check_exists_by_xpath(driver,"//div[@class='work_w_autom button_red tip']")==True:
-                    message = f"Something is wrong, please check AutoWork for {Mail}"
-                else:
-                    message = f"AutoWork was enabled for {Mail}"
+                actionsXPATHList = ["//span[@class='pointer hov2 dot'][contains(text(),'auto')]","//div[@class='button_green war_w_send_ok']",
+                "//div[@class='button_green war_w_send_ok']","//div[@id='header_my_fill_bar']",  "//div[@class='button_green war_w_send_ok']"]
+                for XPATHaction in actionsXPATHList:
+                    driver.implicitly_wait(5)
+                    try:    
+                        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, XPATHaction))).click()
+                    except:
+                        try:
+                            tryAction = driver.find_element(By.XPATH,XPATHaction) #site headers can only be clicked this way
+                            driver.execute_script("arguments[0].click();", tryAction)
+                        except:
+                            print("Not possible")
+                message = f"Attacking for {Mail}"
+                break
+            driver.get(f'{desiredFactory}')
+            driver.refresh()
+            driver.implicitly_wait(1)
+            if check_exists_by_xpath(driver,"//div[@class='factory_join_2 button_green']")== True:
+                driver.implicitly_wait(3)
+                try:
+                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='factory_join_2 button_green']"))).click()
+                except:
+                    click = driver.find_element(By.XPATH,"//div[@class='factory_join_2 button_green']") 
+                    driver.execute_script("arguments[0].click();", click)
+                driver.implicitly_wait(3)
+                message = f"A new factory was selected as factory to work and running again Autowork for {Mail}"
+                driver.get("https://rivalregions.com/#work")
+                driver.refresh()
+                time.sleep(3)
+                break
+            elif nextFactory == True:
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//span[@class='factory_whose']"))).click()
+                driver.implicitly_wait(3)
+                try:
+                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_green region_details_move']"))).click()
+                except:
+                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//span[@class='factory_whose']"))).click()
+                    driver.reload()
+                    time.sleep(3)
+                    WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_green region_details_move']"))).click()
+                driver.implicitly_wait(3)
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_blue map_d_b imp']"))).click()
+                travelTime = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.XPATH,'//span[@class="type_distance"]'))).get_attribute("textContent")
+                message= f"Arriving at {desiredFactory[8:]} in {travelTime} for {Mail}"
+                travelTime = travelTime.split(":")
+                travelTimeSeconds = str(int(int(travelTime[0])*60+ int(travelTime[1])))
+                print(travelTimeSeconds+" s")
+                worksheet.update_value('B8', str(travelTimeSeconds))
+                driver.implicitly_wait(3)
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_green map_d_b']"))).click()
+                break
+
+            elif check_exists_by_xpath(driver,'//div[@class="factory_join_1 button_red"]')==True:
+                print("Next factory")
+                nextFactory = True
+            else:
+                message = f"Please check AutoWork for {Mail}, because {reason} and there are no instructions in the ProfileVariables"
+        sendTG (TOKEN, chat_id, message)
+    
+
+    if check_exists_by_xpath(driver,"//div[@class='work_factory_button button_blue']")==True or check_exists_by_xpath(driver,"//div[@class='button_white tip']")==True:
+        print("You are already bound to a factory here") #the line above checks: if you have energy and you can work or if you have no energy but you can work (only for gold mine)
+        if check_exists_by_xpath(driver,"//div[@class='button_red cancel_auto_work']")==True: #if you cancel autowork, it checks how much time is left 
+            timeLeft = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.XPATH,'//span[@class="work_auto_countdown hasCountdown"]'))).get_attribute("textContent")
+            print((timeLeft))
+            print(timeLeft[0:2])
+            if int(timeLeft[0:2]) < 5:
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_red cancel_auto_work']"))).click()
+                driver.implicitly_wait(5)
+                WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='work_w_autom button_red tip']"))).click()
+                message = f"Autowork was cancelled and restarted for {Mail}"
                 sendTG (TOKEN, chat_id, message)
-        time.sleep(3)
-    else: #desiredFactory == Attack
-        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_green war_w_send_ok']"))).click()
-        driver.implicitly_wait(5)
-        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_green war_w_send_ok']"))).click()
-        driver.implicitly_wait(5)
-        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@id='header_my_fill_bar']"))).click()
-        driver.implicitly_wait(5)
-        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='button_green war_w_send_ok']"))).click()
+        elif check_exists_by_xpath(driver,"//div[@class='work_w_autom button_red tip']")==True: #if you dont have auto enabled, it enables it
+            WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//div[@class='work_w_autom button_red tip']"))).click()
+            driver.refresh()
+            time.sleep(5)
+            if check_exists_by_xpath(driver,"//div[@class='work_w_autom button_red tip']")==True:
+                message = f"Something is wrong, please check AutoWork for {Mail}"
+            else:
+                message = f"AutoWork was enabled for {Mail}"
+            sendTG (TOKEN, chat_id, message)
+    time.sleep(3)
 
 
 
@@ -436,7 +511,8 @@ def autosell(driver, chat_id, TOKEN, Mail): #COMPLETED FOR NOW: SELLS AUTOMATICA
 def repeatProcess(driver, chat_id, TOKEN, Mail,worksheet):
     repeatProcessTime = worksheet.get_value("B8")
     if repeatProcessTime != "":
-        time.sleep(int(repeatProcessTime))
+        time.sleep(int(repeatProcessTime)+5)
+        military_training(driver, chat_id, TOKEN, Mail)
         autowork(driver, chat_id, TOKEN, Mail,worksheet)
         worksheet.update_value('B8', '')
 
@@ -444,7 +520,6 @@ def repeatProcess(driver, chat_id, TOKEN, Mail,worksheet):
 
 
 def autoProfile (driver, chat_id, TOKEN, Mail,worksheet):
-    build_academy(driver, chat_id, TOKEN, Mail,worksheet)
     for profileVariableNumber in range (6):
         try:
             if profileVariableNumber==0:
@@ -467,21 +542,13 @@ def autoProfile (driver, chat_id, TOKEN, Mail,worksheet):
                 repeatProcess(driver, chat_id, TOKEN, Mail,worksheet)
 
         except Exception as e:
-            message = f"Error while running {autoProfileTool} for {Mail}. Traceback: {e}"
+            message = f"Error while running {autoProfileTool} for {Mail}. Exception: {e}. Traceback: {traceback.format_exc}"
             sendTG (TOKEN, chat_id, message)
 
 
-    
-     
 def reboot():
-    full_reload_hours = [1,4,7,10,13,16,19,22]
-    if datetime.datetime.now().hour in  full_reload_hours:
-        time.sleep(5)
-        os.system("cd /home/gonzalo/RR/Programas/Turdetano && /home/gonzalo/RR/Programas/Turdetano/tutorial-env/bin/python3 /home/gonzalo/RR/Programas/Turdetano/main_dumb_firefox.py")
-    else:
-        time.sleep(5)
-        os.system("cd /home/gonzalo/RR/Programas/Turdetano && /home/gonzalo/RR/Programas/Turdetano/tutorial-env/bin/python3 /home/gonzalo/RR/Programas/Turdetano/main_dumb_firefox_gold.py.py")
-            
+    os.system("cd /home/gonzalo/RR/Programas/Turdetano && /home/gonzalo/RR/Programas/Turdetano/venv/bin/python3 /home/gonzalo/RR/Programas/Turdetano/main_dumb_firefox.py")
+
 
  
 
